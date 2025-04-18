@@ -92,8 +92,8 @@ export function FormEditor({
   const [formDescription, setFormDescription] = useState(
     initialData?.description || ''
   )
-  const [selectedFields, setSelectedFields] = useState<string[]>(
-    initialData?.selectedFields || []
+  const [selectedFields, setSelectedFields] = useState<SalesforceFormField[]>(
+    []
   )
   const [selectedContractor, setSelectedContractor] = useState<string>(
     initialData?.assignedContractor || ''
@@ -124,7 +124,9 @@ export function FormEditor({
       await onSave({
         name: formName,
         description: formDescription,
-        selectedFields,
+        selectedFields: selectedFields.map(
+          (field) => field.Id || field.description || ''
+        ),
         assignedContractor: selectedContractor,
       })
     } finally {
@@ -144,6 +146,8 @@ export function FormEditor({
         return false
     }
   }
+
+  console.log('selectedFields', selectedFields)
 
   return (
     <div className="flex flex-col min-h-[600px]">
@@ -192,13 +196,27 @@ export function FormEditor({
             <FormBuilder
               fields={fields}
               mode="select"
-              selectedFields={selectedFields}
+              selectedFields={selectedFields.map(
+                (f) => f.Id || f.description || ''
+              )}
               onFieldSelect={(fieldId, selected) => {
-                setSelectedFields((prev) =>
-                  selected
-                    ? [...prev, fieldId]
-                    : prev.filter((id) => id !== fieldId)
-                )
+                setSelectedFields((prev) => {
+                  if (selected) {
+                    // Find the field object that matches the ID
+                    const fieldToAdd = fields.find(
+                      (f) => (f.Id || f.description) === fieldId
+                    )
+                    if (fieldToAdd) {
+                      return [...prev, fieldToAdd]
+                    }
+                    return prev
+                  } else {
+                    // Remove the field with matching ID
+                    return prev.filter(
+                      (f) => (f.Id || f.description) !== fieldId
+                    )
+                  }
+                })
               }}
             />
           </div>
@@ -266,46 +284,44 @@ export function FormEditor({
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {fields
-                      .filter((field) => selectedFields.includes(field.Id))
-                      .map((field) => (
-                        <div
-                          key={field.Id}
-                          className="flex items-start gap-3 p-3 group"
-                        >
-                          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0">
-                            {field.Required__c && (
-                              <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
-                            )}
-                            <FileEdit className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {field.Label__c ||
-                                field.Name ||
-                                field.description ||
-                                'Untitled Field'}
-                            </p>
-                            {field.Help_Text__c && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                {field.Help_Text__c}
-                              </p>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
-                              setSelectedFields((prev) =>
-                                prev.filter((id) => id !== field.Id)
-                              )
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                    {selectedFields.map((field) => (
+                      <div
+                        key={field.Id}
+                        className="flex items-start gap-3 p-3 group"
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0">
+                          {field.Required__c && (
+                            <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
+                          )}
+                          <FileEdit className="h-3.5 w-3.5" />
                         </div>
-                      ))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {field.Label__c ||
+                              field.Name ||
+                              field.description ||
+                              'Untitled Field'}
+                          </p>
+                          {field.Help_Text__c && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {field.Help_Text__c}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            setSelectedFields((prev) =>
+                              prev.filter((f) => f.Id !== field.Id)
+                            )
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -338,32 +354,30 @@ export function FormEditor({
                     </div>
                     {selectedFields.length > 0 && (
                       <div className="ml-[100px] pl-3 border-l space-y-2">
-                        {fields
-                          .filter((field) => selectedFields.includes(field.Id))
-                          .map((field) => (
-                            <div
-                              key={field.Id}
-                              className="flex items-center gap-2 text-xs"
-                            >
-                              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0">
-                                <FileEdit className="h-3 w-3" />
-                              </div>
-                              <span>
-                                {field.Label__c ||
-                                  field.Name ||
-                                  field.description ||
-                                  'Untitled Field'}
-                              </span>
-                              {field.Required__c && (
-                                <Badge
-                                  variant="destructive"
-                                  className="h-4 text-[10px]"
-                                >
-                                  Required
-                                </Badge>
-                              )}
+                        {selectedFields.map((field) => (
+                          <div
+                            key={field.Id}
+                            className="flex items-center gap-2 text-xs"
+                          >
+                            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0">
+                              <FileEdit className="h-3 w-3" />
                             </div>
-                          ))}
+                            <span>
+                              {field.Label__c ||
+                                field.Name ||
+                                field.description ||
+                                'Untitled Field'}
+                            </span>
+                            {field.Required__c && (
+                              <Badge
+                                variant="destructive"
+                                className="h-4 text-[10px]"
+                              >
+                                Required
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

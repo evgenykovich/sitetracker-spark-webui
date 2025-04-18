@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useDrop } from 'react-dnd'
 import type { Identifier } from 'dnd-core'
 import { SalesforceFormField } from '@/lib/services/salesforce'
@@ -29,6 +29,16 @@ export function DroppableZone({
   onReorder,
   onDrop,
 }: DroppableZoneProps) {
+  // Helper function to get a reliable field identifier
+  const getFieldId = useCallback((field: SalesforceFormField): string => {
+    return (
+      field.Id ||
+      field.description ||
+      field.Name ||
+      'field-' + Math.random().toString(36).substr(2, 9)
+    )
+  }, [])
+
   const [{ isOver, canDrop }, dropRef] = useDrop<
     DragItem,
     void,
@@ -37,13 +47,16 @@ export function DroppableZone({
     () => ({
       accept: ['source', 'target'] as Identifier[],
       drop: (item) => {
-        if (onDrop) {
+        if (onDrop && item.type === 'source') {
           onDrop(item)
-        } else if (onReorder) {
+        } else if (onReorder && item.type === 'target') {
           if (item.fields) {
             onReorder(item.fields)
           } else if (item.field) {
-            onReorder([...fields, item.field])
+            // Use getFieldId to check if the field already exists
+            if (!fields.some((f) => getFieldId(f) === getFieldId(item.field))) {
+              onReorder([...fields, item.field])
+            }
           }
         }
       },
@@ -52,7 +65,7 @@ export function DroppableZone({
         canDrop: monitor.canDrop(),
       }),
     }),
-    [fields, onReorder, onDrop]
+    [fields, onReorder, onDrop, getFieldId]
   )
 
   const isActive = isOver && canDrop
@@ -79,10 +92,12 @@ export function DroppableZone({
         <div className="space-y-2">
           {fields.map((field) => (
             <DraggableFormField
-              key={field.Id}
+              key={getFieldId(field)}
               field={field}
               mode="target"
-              onRemove={onRemove ? () => onRemove(field.Id) : undefined}
+              onRemove={
+                onRemove ? () => onRemove(getFieldId(field)) : undefined
+              }
             />
           ))}
         </div>

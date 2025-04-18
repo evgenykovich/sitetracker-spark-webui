@@ -59,6 +59,8 @@ function SourceFieldCard({
   field: SalesforceFormField
   isSelected: boolean
 }) {
+  // Get a field identifier even if Id is undefined
+  const fieldId = field.Id || field.description
   return (
     <DraggableFormField field={field} mode="source" isSelected={isSelected} />
   )
@@ -78,13 +80,24 @@ export function FormBuilder({
   const [completedFields, setCompletedFields] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
+  // Helper function to get a reliable field identifier
+  const getFieldId = useCallback((field: SalesforceFormField): string => {
+    return (
+      field.Id ||
+      field.description ||
+      field.Name ||
+      'field-' + Math.random().toString(36).substr(2, 9)
+    )
+  }, [])
+
   const filteredFields = useMemo(() => {
     return fields.filter((field) => {
       const searchTerms = searchQuery.toLowerCase().split(' ')
       return searchTerms.every(
         (term) =>
           field.Label__c.toLowerCase().includes(term) ||
-          (field.Help_Text__c?.toLowerCase() || '').includes(term)
+          (field.Help_Text__c?.toLowerCase() || '').includes(term) ||
+          (field.description?.toLowerCase() || '').includes(term)
       )
     })
   }, [fields, searchQuery])
@@ -124,6 +137,29 @@ export function FormBuilder({
     return 'optional'
   }
 
+  // Handle dropping a field from the source to the target
+  const handleDrop = useCallback(
+    (item: { id: string; type: string; field: SalesforceFormField }) => {
+      console.log('Drop event:', item)
+
+      // Only handle source items (from the available fields list)
+      if (item.type === 'source' && mode === 'select' && onFieldSelect) {
+        // Get field identifier using our helper function
+        const fieldId = getFieldId(item.field)
+        console.log('Handling drop of source item:', fieldId)
+
+        // Only add the field if it's not already selected
+        if (!selectedFields.includes(fieldId)) {
+          console.log('Adding field to selection:', fieldId)
+          onFieldSelect(fieldId, true)
+        } else {
+          console.log('Field already selected, ignoring:', fieldId)
+        }
+      }
+    },
+    [mode, onFieldSelect, selectedFields, getFieldId]
+  )
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col gap-6">
@@ -145,9 +181,9 @@ export function FormBuilder({
             <div className="space-y-2">
               {filteredFields.map((field) => (
                 <SourceFieldCard
-                  key={field.Id}
+                  key={getFieldId(field)}
                   field={field}
-                  isSelected={selectedFields.includes(field.Id)}
+                  isSelected={selectedFields.includes(getFieldId(field))}
                 />
               ))}
             </div>
@@ -158,8 +194,11 @@ export function FormBuilder({
             <h3 className="text-lg font-semibold">Form Fields</h3>
             <DroppableZone
               id="form-fields"
-              fields={fields.filter((f) => selectedFields.includes(f.Id))}
+              fields={fields.filter((f) =>
+                selectedFields.includes(getFieldId(f))
+              )}
               selectedFields={selectedFields}
+              onDrop={handleDrop}
               onRemove={(fieldId) => {
                 if (mode === 'select' && onFieldSelect) {
                   onFieldSelect(fieldId, false)
@@ -170,7 +209,9 @@ export function FormBuilder({
                   // Remove all fields first
                   selectedFields.forEach((id) => onFieldSelect(id, false))
                   // Then add them back in the new order
-                  newFields.forEach((field) => onFieldSelect(field.Id, true))
+                  newFields.forEach((field) =>
+                    onFieldSelect(getFieldId(field), true)
+                  )
                 }
               }}
             />

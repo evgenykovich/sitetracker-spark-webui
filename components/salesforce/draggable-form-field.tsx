@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useDrag } from 'react-dnd'
 import type { Identifier } from 'dnd-core'
 import { SalesforceFormField } from '@/lib/services/salesforce'
@@ -54,17 +54,32 @@ export function DraggableFormField({
   onRemove,
   isSelected,
 }: DraggableFormFieldProps) {
+  // Helper function to get a reliable field identifier
+  const getFieldId = useCallback((field: SalesforceFormField): string => {
+    return (
+      field.Id ||
+      field.description ||
+      field.Name ||
+      'field-' + Math.random().toString(36).substr(2, 9)
+    )
+  }, [])
+
+  const fieldId = getFieldId(field)
+
   const [{ isDragging }, dragRef] = useDrag<
     DragItem,
     void,
     { isDragging: boolean }
-  >(() => ({
-    type: mode as Identifier,
-    item: { id: field.Id, type: mode, field },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
+  >(
+    () => ({
+      type: mode as Identifier,
+      item: { id: fieldId, type: mode, field },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
     }),
-  }))
+    [field, mode, fieldId]
+  )
 
   const isPhotoField =
     field.Item_Type__c === 'Photo/File' ||
