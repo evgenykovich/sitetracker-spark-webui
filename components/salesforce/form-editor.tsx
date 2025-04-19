@@ -41,6 +41,7 @@ import {
   Info,
   X,
 } from 'lucide-react'
+import { ContractorSelect } from '@/components/contractors/contractor-select'
 
 interface FormEditorProps {
   fields: SalesforceFormField[]
@@ -95,9 +96,7 @@ export function FormEditor({
   const [selectedFields, setSelectedFields] = useState<SalesforceFormField[]>(
     []
   )
-  const [selectedContractor, setSelectedContractor] = useState<string>(
-    initialData?.assignedContractor || ''
-  )
+  const [selectedContractor, setSelectedContractor] = useState<string>()
   const [isSaving, setIsSaving] = useState(false)
 
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep)
@@ -147,7 +146,8 @@ export function FormEditor({
     }
   }
 
-  console.log('selectedFields', selectedFields)
+  console.log('selectedContractor', selectedContractor)
+  console.log('contractors', contractors)
 
   return (
     <div className="flex flex-col min-h-[600px]">
@@ -247,22 +247,11 @@ export function FormEditor({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Select Contractor</Label>
-                  <Select
+                  <ContractorSelect
                     value={selectedContractor}
-                    onValueChange={setSelectedContractor}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a contractor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contractors.map((contractor) => (
-                        <SelectItem key={contractor.id} value={contractor.id}>
-                          {contractor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={setSelectedContractor}
+                    required
+                  />
                 </div>
               </div>
             </div>

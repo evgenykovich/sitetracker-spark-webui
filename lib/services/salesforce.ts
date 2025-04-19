@@ -27,6 +27,19 @@ export interface SalesforceForm {
   createdDate?: string
 }
 
+export interface SalesforceContractor {
+  id: string
+  name: string
+  email: string
+  location: {
+    city: string
+    state: string
+  }
+  type?: string
+  status?: string
+  createdDate?: string
+}
+
 export interface SalesforceFormField {
   Id: string
   Name: string
@@ -198,6 +211,33 @@ class SalesforceService {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.message || 'Failed to fetch Salesforce form fields')
+    }
+
+    return response.json()
+  }
+
+  static async getContractors(filters?: {
+    location?: string
+    state?: string
+    type?: string
+    status?: string
+  }): Promise<SalesforceContractor[]> {
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (filters?.location) params.append('location', filters.location)
+    if (filters?.state) params.append('state', filters.state)
+    if (filters?.type) params.append('type', filters.type)
+    if (filters?.status) params.append('status', filters.status)
+
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+
+    const response = await fetch(`${this.API_URL}/contractors${queryString}`, {
+      headers: await this.getHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Failed to fetch Salesforce contractors')
     }
 
     return response.json()

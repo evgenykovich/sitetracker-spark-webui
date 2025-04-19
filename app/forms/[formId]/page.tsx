@@ -11,6 +11,7 @@ import { FormEditor } from '@/components/salesforce/form-editor'
 import SalesforceService, {
   SalesforceFormField,
 } from '@/lib/services/salesforce'
+import ContractorsService, { Contractor } from '@/lib/services/contractors'
 
 export default function SalesforceFormPage() {
   const [fields, setFields] = useState<SalesforceFormField[]>([])
@@ -26,17 +27,23 @@ export default function SalesforceFormPage() {
     async function fetchData() {
       try {
         setIsLoading(true)
-        const fields = await SalesforceService.getFormFields(formId as string)
 
-        // Mock contractors data
-        const mockContractors = [
-          { id: '1', name: 'John Contractor' },
-          { id: '2', name: 'Sarah Builder' },
-          { id: '3', name: 'Mike Construction' },
-        ]
+        // Fetch fields and contractors in parallel
+        const [fields, contractorsData] = await Promise.all([
+          SalesforceService.getFormFields(formId as string),
+          ContractorsService.getContractors({}),
+        ])
+
+        // Format contractors for the dropdown
+        const formattedContractors = contractorsData.map((contractor) => ({
+          id: contractor.id,
+          name: `${contractor.firstName} ${contractor.lastName}${
+            contractor.companyName ? ` (${contractor.companyName})` : ''
+          }`,
+        }))
 
         setFields(fields)
-        setContractors(mockContractors)
+        setContractors(formattedContractors)
       } catch (error) {
         console.error('Failed to load data:', error)
         toast({
@@ -53,7 +60,7 @@ export default function SalesforceFormPage() {
     if (formId) {
       fetchData()
     }
-  }, [formId])
+  }, [formId, toast])
 
   const handleSave = async (formData: {
     name: string

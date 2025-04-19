@@ -26,10 +26,18 @@ interface NavItemProps {
   icon: ReactNode
   label: string
   isActive: boolean
+  isAdmin?: boolean
   collapsed?: boolean
 }
 
-function NavItem({ href, icon, label, isActive, collapsed }: NavItemProps) {
+function NavItem({
+  href,
+  icon,
+  label,
+  isActive,
+  isAdmin,
+  collapsed,
+}: NavItemProps) {
   return (
     <Link
       href={href}
@@ -120,6 +128,13 @@ export function Sidebar({
               icon={<FileSpreadsheet className="h-4 w-4" />}
               label="Forms"
               isActive={pathname.startsWith('/forms')}
+              collapsed={!isSidebarOpen}
+            />
+            <NavItem
+              href="/contractors"
+              icon={<Users className="h-4 w-4" />}
+              label="Contractors"
+              isActive={pathname.startsWith('/contractors')}
               collapsed={!isSidebarOpen}
             />
             {isAdmin && (
