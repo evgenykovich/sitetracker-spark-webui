@@ -1,6 +1,19 @@
 import { getBaseUrl } from '@/lib/utils'
 import { getToken } from '@/lib/auth'
 
+export interface ContractorProfile {
+  id?: string
+  userId?: string
+  company?: string
+  phone?: string
+  street?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface Contractor {
   id: string
   firstName: string
@@ -17,6 +30,7 @@ export interface Contractor {
   }
   status?: 'ACTIVE' | 'INACTIVE' | 'PENDING'
   specialties?: string[]
+  contractorProfile?: ContractorProfile
   createdAt?: string
   updatedAt?: string
 }

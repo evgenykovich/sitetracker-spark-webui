@@ -74,7 +74,7 @@ export function DroppableZone({
     <div
       ref={dropRef as unknown as React.LegacyRef<HTMLDivElement>}
       className={cn(
-        'min-h-[300px] rounded-lg border-2 border-dashed p-4 transition-all duration-200',
+        'h-[380px] overflow-y-auto rounded-lg border-2 border-dashed p-4 transition-all duration-200',
         fields.length === 0 && 'flex items-center justify-center',
         isActive && 'border-primary border-solid scale-[1.02] bg-primary/5'
       )}

@@ -29,21 +29,21 @@ import { Badge } from '@/components/ui/badge'
 import { CheckIcon, Loader2, Plus, X } from 'lucide-react'
 import ContractorsService from '@/lib/services/contractors'
 import { CONTRACTOR_SPECIALTIES } from '@/components/contractors/contractors-filter'
+import { Contractor } from '@/lib/services/contractors'
 
-// Define form schema using zod
+// Update the form schema to match the new data structure
 const formSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
-  companyName: z.string().optional(),
-  address: z
+  contractorProfile: z
     .object({
+      phone: z.string().optional(),
+      company: z.string().optional(),
       street: z.string().optional(),
       city: z.string().optional(),
       state: z.string().optional(),
       zipCode: z.string().optional(),
-      country: z.string().optional(),
     })
     .optional(),
   specialties: z.array(z.string()).optional(),
@@ -51,7 +51,15 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-export function ContractorForm() {
+interface ContractorFormProps {
+  mode?: 'create' | 'edit'
+  initialData?: Contractor
+}
+
+export function ContractorForm({
+  mode = 'create',
+  initialData,
+}: ContractorFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [newSpecialty, setNewSpecialty] = useState('')
@@ -61,19 +69,18 @@ export function ContractorForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      companyName: '',
-      address: {
-        street: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: 'United States',
+      firstName: initialData?.firstName || '',
+      lastName: initialData?.lastName || '',
+      email: initialData?.email || '',
+      contractorProfile: {
+        phone: initialData?.contractorProfile?.phone || '',
+        company: initialData?.contractorProfile?.company || '',
+        street: initialData?.contractorProfile?.street || '',
+        city: initialData?.contractorProfile?.city || '',
+        state: initialData?.contractorProfile?.state || '',
+        zipCode: initialData?.contractorProfile?.zipCode || '',
       },
-      specialties: [],
+      specialties: initialData?.specialties || [],
     },
   })
 
@@ -100,17 +107,34 @@ export function ContractorForm() {
     setIsSubmitting(true)
 
     try {
-      await ContractorsService.createContractor(data)
-      toast({
-        title: 'Contractor created',
-        description: 'The contractor has been successfully created.',
-      })
+      if (mode === 'edit' && initialData) {
+        // If editing, preserve the existing IDs
+        const updatedData = {
+          ...data,
+          contractorProfile: {
+            ...data.contractorProfile,
+            id: initialData.contractorProfile?.id,
+            userId: initialData.contractorProfile?.userId,
+          },
+        }
+        await ContractorsService.updateContractor(initialData.id, updatedData)
+        toast({
+          title: 'Contractor updated',
+          description: 'The contractor has been successfully updated.',
+        })
+      } else {
+        await ContractorsService.createContractor(data)
+        toast({
+          title: 'Contractor created',
+          description: 'The contractor has been successfully created.',
+        })
+      }
       router.push('/contractors')
     } catch (error) {
-      console.error('Failed to create contractor:', error)
+      console.error(`Failed to ${mode} contractor:`, error)
       toast({
         title: 'Error',
-        description: 'Failed to create contractor. Please try again.',
+        description: `Failed to ${mode} contractor. Please try again.`,
         variant: 'destructive',
       })
     } finally {
@@ -177,7 +201,7 @@ export function ContractorForm() {
 
               <FormField
                 control={form.control}
-                name="phone"
+                name="contractorProfile.phone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
@@ -195,7 +219,7 @@ export function ContractorForm() {
 
               <FormField
                 control={form.control}
-                name="companyName"
+                name="contractorProfile.company"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
@@ -220,7 +244,7 @@ export function ContractorForm() {
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="address.street"
+                name="contractorProfile.street"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Street Address</FormLabel>
@@ -239,7 +263,7 @@ export function ContractorForm() {
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="address.city"
+                  name="contractorProfile.city"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>City</FormLabel>
@@ -257,7 +281,7 @@ export function ContractorForm() {
 
                 <FormField
                   control={form.control}
-                  name="address.state"
+                  name="contractorProfile.state"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>State</FormLabel>
@@ -277,31 +301,13 @@ export function ContractorForm() {
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="address.zipCode"
+                  name="contractorProfile.zipCode"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Zip Code</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="10001"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="address.country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="United States"
                           {...field}
                           value={field.value || ''}
                         />
@@ -378,11 +384,13 @@ export function ContractorForm() {
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {mode === 'edit' ? 'Updating...' : 'Creating...'}
               </>
             ) : (
               <>
-                <CheckIcon className="mr-2 h-4 w-4" /> Create Contractor
+                <CheckIcon className="mr-2 h-4 w-4" />
+                {mode === 'edit' ? 'Update Contractor' : 'Create Contractor'}
               </>
             )}
           </Button>

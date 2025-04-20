@@ -95,7 +95,7 @@ function ConnectionForm({
               <FormControl>
                 <Input
                   {...field}
-                  className="font-mono text-sm min-h-[80px] whitespace-normal break-all"
+                  className="font-mono text-sm  whitespace-normal break-all"
                   spellCheck={false}
                   autoComplete="off"
                   value={field.value}

@@ -146,9 +146,6 @@ export function FormEditor({
     }
   }
 
-  console.log('selectedContractor', selectedContractor)
-  console.log('contractors', contractors)
-
   return (
     <div className="flex flex-col min-h-[600px]">
       <div className="border-b p-3">

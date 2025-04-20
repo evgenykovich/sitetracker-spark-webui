@@ -23,9 +23,11 @@ import {
   Loader2,
   AlertCircle,
   UserPlus,
+  AlertTriangle,
 } from 'lucide-react'
 import SalesforceService from '@/lib/services/salesforce'
 import ContractorsService from '@/lib/services/contractors'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 const container = {
   hidden: { opacity: 0 },
@@ -52,7 +54,8 @@ export default function DashboardPage() {
     activeContractors: '...',
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [salesforceError, setSalesforceError] = useState<boolean>(false)
+  const [contractorsError, setContractorsError] = useState<boolean>(false)
   const [recentContractors, setRecentContractors] = useState<any[]>([])
   const [recentForms, setRecentForms] = useState<any[]>([])
 
@@ -66,52 +69,83 @@ export default function DashboardPage() {
     async function fetchDashboardData() {
       try {
         setIsLoading(true)
-        setError(null)
+        setSalesforceError(false)
+        setContractorsError(false)
 
         // Fetch forms and contractors in parallel
-        const [forms, contractors] = await Promise.all([
+        const [formsResult, contractorsResult] = await Promise.allSettled([
           SalesforceService.getForms(),
           ContractorsService.getContractors({}),
         ])
 
-        // Calculate active contractors (those with "ACTIVE" status)
-        const activeContractors = contractors.filter(
-          (c) => c.status?.toLowerCase() === 'active'
-        )
-
-        // Calculate pending forms - for demo, assuming forms with "pending" status
-        const pendingForms = forms.filter(
-          (form) => form.status?.toLowerCase() === 'pending'
-        )
-
-        // Get the most recent 3 contractors
-        const sortedContractors = [...contractors].sort((a, b) => {
-          return (
-            new Date(b.createdAt || 0).getTime() -
-            new Date(a.createdAt || 0).getTime()
+        // Handle Salesforce data
+        if (formsResult.status === 'rejected') {
+          console.error('Error fetching Salesforce data:', formsResult.reason)
+          setSalesforceError(true)
+          setDashboardData((prev) => ({
+            ...prev,
+            totalForms: '-',
+            pendingForms: '-',
+          }))
+          setRecentForms([])
+        } else {
+          const forms = formsResult.value
+          const pendingForms = forms.filter(
+            (form) => form.status?.toLowerCase() === 'pending'
           )
-        })
-        setRecentContractors(sortedContractors.slice(0, 3))
+          setDashboardData((prev) => ({
+            ...prev,
+            totalForms: forms.length.toString(),
+            pendingForms: pendingForms.length.toString(),
+          }))
 
-        // Get the most recent 3 forms
-        const sortedForms = [...forms].sort((a, b) => {
-          return (
-            new Date(b.createdDate || 0).getTime() -
-            new Date(a.createdDate || 0).getTime()
+          // Get the most recent 3 forms
+          const sortedForms = [...forms].sort((a, b) => {
+            return (
+              new Date(b.createdDate || 0).getTime() -
+              new Date(a.createdDate || 0).getTime()
+            )
+          })
+          setRecentForms(sortedForms.slice(0, 3))
+        }
+
+        // Handle Contractors data
+        if (contractorsResult.status === 'rejected') {
+          console.error(
+            'Error fetching Contractors data:',
+            contractorsResult.reason
           )
-        })
-        setRecentForms(sortedForms.slice(0, 3))
+          setContractorsError(true)
+          setDashboardData((prev) => ({
+            ...prev,
+            totalContractors: '-',
+            activeContractors: '-',
+          }))
+          setRecentContractors([])
+        } else {
+          const contractors = contractorsResult.value
+          const activeContractors = contractors.filter(
+            (c) => c.status?.toLowerCase() === 'active'
+          )
+          setDashboardData((prev) => ({
+            ...prev,
+            totalContractors: contractors.length.toString(),
+            activeContractors: activeContractors.length.toString(),
+          }))
 
-        // Update dashboard data
-        setDashboardData({
-          totalForms: forms.length.toString(),
-          pendingForms: pendingForms.length.toString(),
-          totalContractors: contractors.length.toString(),
-          activeContractors: activeContractors.length.toString(),
-        })
-      } catch (err) {
+          // Get the most recent 3 contractors
+          const sortedContractors = [...contractors].sort((a, b) => {
+            return (
+              new Date(b.createdAt || 0).getTime() -
+              new Date(a.createdAt || 0).getTime()
+            )
+          })
+          setRecentContractors(sortedContractors.slice(0, 3))
+        }
+      } catch (err: any) {
         console.error('Error fetching dashboard data:', err)
-        setError('Failed to load dashboard data.')
+        setSalesforceError(true)
+        setContractorsError(true)
       } finally {
         setIsLoading(false)
       }
@@ -171,26 +205,39 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {salesforceError && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <AlertTitle>Salesforce Connection Issue</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">
+                We're unable to connect to Salesforce at the moment. Some
+                form-related data may be unavailable.
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Verify your Salesforce credentials</li>
+                <li>Check if your Salesforce instance is accessible</li>
+                <li>Contact your administrator if the problem persists</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {contractorsError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error Loading Contractor Data</AlertTitle>
+            <AlertDescription>
+              Unable to load contractor information. Please try refreshing the
+              page.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
           </div>
-        ) : error ? (
-          <Card className="border-destructive/20 bg-destructive/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                Error Loading Dashboard
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{error}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Try refreshing the page or contact support if the problem
-                persists.
-              </p>
-            </CardContent>
-          </Card>
         ) : (
           <>
             <motion.div
@@ -201,7 +248,7 @@ export default function DashboardPage() {
             >
               {statsData.map((stat) => (
                 <motion.div key={stat.title} variants={item}>
-                  <Card>
+                  <Card className={stat.value === '-' ? 'opacity-60' : ''}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
                         {stat.title}
@@ -209,9 +256,13 @@ export default function DashboardPage() {
                       <div className={stat.color}>{stat.icon}</div>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{stat.value}</div>
+                      <div className="text-2xl font-bold">
+                        {stat.value === '-' ? 'N/A' : stat.value}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        {stat.description}
+                        {stat.value === '-'
+                          ? 'Currently unavailable'
+                          : stat.description}
                       </p>
                     </CardContent>
                   </Card>
@@ -226,7 +277,11 @@ export default function DashboardPage() {
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="px-6 py-0 space-y-2 flex-1">
-                  <Button asChild className="w-full justify-between">
+                  <Button
+                    asChild
+                    className="w-full justify-between"
+                    disabled={salesforceError}
+                  >
                     <Link href="/forms/create">
                       Create New Form
                       <ArrowRight className="h-4 w-4" />
@@ -236,6 +291,7 @@ export default function DashboardPage() {
                     asChild
                     variant="outline"
                     className="w-full justify-between"
+                    disabled={salesforceError}
                   >
                     <Link href="/forms">
                       View All Forms
@@ -246,6 +302,7 @@ export default function DashboardPage() {
                     asChild
                     variant="outline"
                     className="w-full justify-between"
+                    disabled={contractorsError}
                   >
                     <Link href="/contractors/new">
                       Add New Contractor
@@ -253,110 +310,111 @@ export default function DashboardPage() {
                     </Link>
                   </Button>
                 </CardContent>
-                <div className="hidden px-6 pb-6 mt-auto">
-                  {/* Hidden spacer to maintain consistent height */}
-                </div>
               </Card>
 
               {/* Recent Forms Card */}
-              <Card className="flex flex-col pt-2">
-                <CardHeader>
-                  <CardTitle>Recent Forms</CardTitle>
-                  <CardDescription>Latest forms created</CardDescription>
-                </CardHeader>
-                <CardContent className="px-6 py-0 flex-1">
-                  {recentForms.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">
-                      No forms created yet. Create your first form to get
-                      started.
-                    </p>
-                  ) : (
-                    <div className="space-y-6">
-                      {recentForms.map((form) => (
-                        <div
-                          key={form.id}
-                          className="flex items-center justify-between pt-2"
-                        >
-                          <div>
-                            <p className="font-medium text-sm">{form.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {form.createdDate
-                                ? new Date(
-                                    form.createdDate
-                                  ).toLocaleDateString()
-                                : 'Recently'}
-                            </p>
+              {!salesforceError && (
+                <Card className="flex flex-col pt-2">
+                  <CardHeader>
+                    <CardTitle>Recent Forms</CardTitle>
+                    <CardDescription>Latest forms created</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 py-0 flex-1">
+                    {recentForms.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        No forms created yet. Create your first form to get
+                        started.
+                      </p>
+                    ) : (
+                      <div className="space-y-6">
+                        {recentForms.map((form) => (
+                          <div
+                            key={form.id}
+                            className="flex items-center justify-between pt-2"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{form.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {form.createdDate
+                                  ? new Date(
+                                      form.createdDate
+                                    ).toLocaleDateString()
+                                  : 'Recently'}
+                              </p>
+                            </div>
+                            <Link href={`/forms/${form.id}`}>
+                              <Button variant="ghost" size="sm" className="h-8">
+                                View
+                              </Button>
+                            </Link>
                           </div>
-                          <Link href={`/forms/${form.id}`}>
-                            <Button variant="ghost" size="sm" className="h-8">
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-                <div className="px-6 pb-6 mt-auto">
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                  >
-                    <Link href="/forms">View All Forms</Link>
-                  </Button>
-                </div>
-              </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                  <div className="px-6 pb-6 mt-auto">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Link href="/forms">View All Forms</Link>
+                    </Button>
+                  </div>
+                </Card>
+              )}
 
               {/* Recent Contractors Card */}
-              <Card className="flex flex-col pt-2">
-                <CardHeader>
-                  <CardTitle>Recent Contractors</CardTitle>
-                  <CardDescription>Latest contractors added</CardDescription>
-                </CardHeader>
-                <CardContent className="px-6 py-0 flex-1">
-                  {recentContractors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">
-                      No contractors added yet. Add your first contractor to get
-                      started.
-                    </p>
-                  ) : (
-                    <div className="space-y-6">
-                      {recentContractors.map((contractor) => (
-                        <div
-                          key={contractor.id}
-                          className="flex items-center justify-between pt-2"
-                        >
-                          <div>
-                            <p className="font-medium text-sm">
-                              {contractor.firstName} {contractor.lastName}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {contractor.companyName || 'Independent'}
-                            </p>
+              {!contractorsError && (
+                <Card className="flex flex-col pt-2">
+                  <CardHeader>
+                    <CardTitle>Recent Contractors</CardTitle>
+                    <CardDescription>Latest contractors added</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 py-0 flex-1">
+                    {recentContractors.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        No contractors added yet. Add your first contractor to
+                        get started.
+                      </p>
+                    ) : (
+                      <div className="space-y-6">
+                        {recentContractors.map((contractor) => (
+                          <div
+                            key={contractor.id}
+                            className="flex items-center justify-between pt-2"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">
+                                {contractor.firstName} {contractor.lastName}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {contractor.companyName || 'Independent'}
+                              </p>
+                            </div>
+                            <Link href={`/contractors?id=${contractor.id}`}>
+                              <Button variant="ghost" size="sm" className="h-8">
+                                View
+                              </Button>
+                            </Link>
                           </div>
-                          <Link href={`/contractors?id=${contractor.id}`}>
-                            <Button variant="ghost" size="sm" className="h-8">
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-                <div className="px-6 pb-6 mt-auto">
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                  >
-                    <Link href="/contractors">View All Contractors</Link>
-                  </Button>
-                </div>
-              </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                  <div className="px-6 pb-6 mt-auto">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Link href="/contractors">View All Contractors</Link>
+                    </Button>
+                  </div>
+                </Card>
+              )}
             </div>
           </>
         )}

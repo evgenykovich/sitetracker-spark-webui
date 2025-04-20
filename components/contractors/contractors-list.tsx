@@ -26,15 +26,86 @@ import {
   UserPlus,
   Phone,
   Building,
+  Trash2,
+  Eye,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useToast } from '@/hooks/use-toast'
 import { Contractor } from '@/lib/services/contractors'
 
 interface ContractorsListProps {
   contractors: Contractor[]
+  onEdit?: (contractor: Contractor) => void
+  onDelete?: (contractorId: string) => Promise<void>
 }
 
-export function ContractorsList({ contractors }: ContractorsListProps) {
+export function ContractorsList({
+  contractors,
+  onEdit,
+  onDelete,
+}: ContractorsListProps) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [contractorToDelete, setContractorToDelete] =
+    useState<Contractor | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleEditClick = (contractor: Contractor) => {
+    if (onEdit) {
+      onEdit(contractor)
+    } else {
+      router.push(`/contractors/edit/${contractor.id}`)
+    }
+  }
+
+  const handleDeleteClick = (contractor: Contractor) => {
+    setContractorToDelete(contractor)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!contractorToDelete) return
+
+    setIsDeleting(true)
+    try {
+      if (onDelete) {
+        await onDelete(contractorToDelete.id)
+        toast({
+          title: 'Contractor deleted',
+          description: `${contractorToDelete.firstName} ${contractorToDelete.lastName} has been removed.`,
+        })
+      } else {
+        // Fallback if no delete handler is provided
+        toast({
+          title: 'Not implemented',
+          description: 'Delete functionality not implemented yet.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete contractor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setContractorToDelete(null)
+    }
+  }
+
   if (contractors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -55,115 +126,169 @@ export function ContractorsList({ contractors }: ContractorsListProps) {
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Specialties</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[80px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contractors.map((contractor) => (
-            <TableRow key={contractor.id}>
-              <TableCell className="font-medium">
-                {contractor.firstName} {contractor.lastName}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-col space-y-1">
-                  <a
-                    href={`mailto:${contractor.email}`}
-                    className="text-primary hover:underline flex items-center"
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Specialties</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[80px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {contractors.map((contractor) => (
+              <TableRow key={contractor.id}>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/contractors/edit/${contractor.id}`}
+                    className="hover:underline text-primary cursor-pointer"
                   >
-                    <Mail className="h-3.5 w-3.5 mr-1.5" />
-                    {contractor.email}
-                  </a>
-                  {contractor.phone && (
+                    {contractor.firstName} {contractor.lastName}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col space-y-1">
                     <a
-                      href={`tel:${contractor.phone}`}
-                      className="text-muted-foreground hover:underline flex items-center"
+                      href={`mailto:${contractor.email}`}
+                      className="text-primary hover:underline flex items-center"
                     >
-                      <Phone className="h-3.5 w-3.5 mr-1.5" />
-                      {contractor.phone}
+                      <Mail className="h-3.5 w-3.5 mr-1.5" />
+                      {contractor.email}
                     </a>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                {contractor.companyName ? (
-                  <div className="flex items-center">
-                    <Building className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    {contractor.companyName}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground text-sm">-</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {contractor.address?.city && contractor.address?.state
-                  ? `${contractor.address.city}, ${contractor.address.state}`
-                  : contractor.address?.city ||
-                    contractor.address?.state || (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {contractor.specialties &&
-                  contractor.specialties.length > 0 ? (
-                    contractor.specialties.map((specialty) => (
-                      <Badge
-                        key={specialty}
-                        variant="outline"
-                        className="text-xs py-0 h-5"
+                    {contractor.phone && (
+                      <a
+                        href={`tel:${contractor.phone}`}
+                        className="text-muted-foreground hover:underline flex items-center"
                       >
-                        {specialty}
-                      </Badge>
-                    ))
+                        <Phone className="h-3.5 w-3.5 mr-1.5" />
+                        {contractor.phone}
+                      </a>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {contractor.companyName ? (
+                    <div className="flex items-center">
+                      <Building className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      {contractor.companyName}
+                    </div>
                   ) : (
                     <span className="text-muted-foreground text-sm">-</span>
                   )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={contractor.status || 'PENDING'} />
-              </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <FileText className="mr-2 h-4 w-4" />
-                      View forms
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Send email
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+                </TableCell>
+                <TableCell>
+                  {contractor.address?.city && contractor.address?.state
+                    ? `${contractor.address.city}, ${contractor.address.state}`
+                    : contractor.address?.city ||
+                      contractor.address?.state || (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {contractor.specialties &&
+                    contractor.specialties.length > 0 ? (
+                      contractor.specialties.map((specialty) => (
+                        <Badge
+                          key={specialty}
+                          variant="outline"
+                          className="text-xs py-0 h-5"
+                        >
+                          {specialty}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={contractor.status || 'PENDING'} />
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">Open menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => handleEditClick(contractor)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/contractors/${contractor.id}`}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View details
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/forms?contractor=${contractor.id}`}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          View forms
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <a href={`mailto:${contractor.email}`}>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send email
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteClick(contractor)}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete contractor
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the contractor{' '}
+              {contractorToDelete?.firstName} {contractorToDelete?.lastName}.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

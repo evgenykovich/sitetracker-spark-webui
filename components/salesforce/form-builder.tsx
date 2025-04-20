@@ -176,9 +176,9 @@ export function FormBuilder({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Source fields */}
-          <div className="space-y-4">
+          <div className="space-y-4 ">
             <h3 className="text-lg font-semibold">Available Fields</h3>
-            <div className="space-y-2">
+            <div className="space-y-2 h-[380px] overflow-y-auto">
               {filteredFields.map((field) => (
                 <SourceFieldCard
                   key={getFieldId(field)}

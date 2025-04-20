@@ -127,6 +127,7 @@ export function ContractorsFilter({
             <Button
               variant="outline"
               size="sm"
+              className="p-5"
               onClick={onClearFilters}
               disabled={activeFilterCount === 0}
             >
