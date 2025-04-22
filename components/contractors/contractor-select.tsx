@@ -62,11 +62,11 @@ export function ContractorSelect({
   if (!isLoading && contractors.length === 0) {
     return (
       <Card className="border-dashed">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4">
           <CardDescription className="text-center mb-4">
             No contractors found in the system.
           </CardDescription>
-          <div className="flex justify-center">
+          <div className="flex justify-center mb-2">
             <Link href="/contractors/new">
               <Button size="sm">
                 <UserPlus className="h-4 w-4 mr-2" />

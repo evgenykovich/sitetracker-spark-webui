@@ -300,7 +300,9 @@ export function FormEditor({
                           className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => {
                             setSelectedFields((prev) =>
-                              prev.filter((f) => f.Id !== field.Id)
+                              prev.filter(
+                                (f) => f.description !== field.description
+                              )
                             )
                           }}
                         >
