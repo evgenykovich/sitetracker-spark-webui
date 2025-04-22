@@ -19,6 +19,7 @@ interface User {
   firstName: string
   lastName: string
   role: UserRole
+  isAdmin?: boolean
 }
 
 interface JwtPayload {

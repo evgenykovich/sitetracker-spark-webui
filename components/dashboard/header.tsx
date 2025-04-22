@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { LogOut, Menu, User, Settings, ChevronDown } from 'lucide-react'
+import { LogOut, Menu, User, Settings, ChevronDown, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,6 +28,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
     user.firstName && user.lastName
       ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
       : user.email.charAt(0).toUpperCase()
+
+  console.log(user)
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -76,6 +78,17 @@ export function Header({ onToggleSidebar }: HeaderProps) {
                     Account Settings
                   </Link>
                 </DropdownMenuItem>
+                {user.role === 'ADMIN' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer text-red-600 focus:text-red-600"
